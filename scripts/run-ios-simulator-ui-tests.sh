@@ -183,9 +183,13 @@ errors = []
 for key, value in expected.items():
     if data.get(key) != value:
         errors.append(f"{key}: expected {value!r}, got {data.get(key)!r}")
-if data.get("glass_effect_count", 0) < 3:
+if data.get("glass_effect_count", 0) < 2:
     errors.append(
-        "glass_effect_count: expected at least 3 native navigation/control effects"
+        "glass_effect_count: expected two custom native glass effects"
+    )
+if data.get("glass_backdrop_count", 0) < 2:
+    errors.append(
+        "glass_backdrop_count: expected two hooked custom glass backdrops"
     )
 if data.get("glass_effect_default_initializer_available") is not True:
     errors.append("UIGlassEffect default initializer is not available")
