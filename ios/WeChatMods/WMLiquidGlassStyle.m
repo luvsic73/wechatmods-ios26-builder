@@ -7,6 +7,8 @@
 static void *WMLiquidGlassBackdropKey = &WMLiquidGlassBackdropKey;
 static IMP WMCustomNavigationDidMoveOriginal = NULL;
 static IMP WMCustomTabDidMoveOriginal = NULL;
+static IMP WMCustomNavigationLayoutOriginal = NULL;
+static IMP WMCustomTabLayoutOriginal = NULL;
 static BOOL WMCustomNavigationHookInstalled = NO;
 static BOOL WMCustomTabHookInstalled = NO;
 
@@ -89,15 +91,42 @@ static void WMCustomTabDidMove(UIView *bar, SEL selector) {
     }
 }
 
-static BOOL WMInstallDidMoveHook(
+static void WMCustomNavigationLayout(
+    UIView *bar,
+    SEL selector
+) {
+    if (WMCustomNavigationLayoutOriginal != NULL) {
+        ((void (*)(id, SEL))WMCustomNavigationLayoutOriginal)(
+            bar,
+            selector
+        );
+    }
+    if (bar.window != nil) {
+        WMGlassifyCustomBar(bar);
+    }
+}
+
+static void WMCustomTabLayout(UIView *bar, SEL selector) {
+    if (WMCustomTabLayoutOriginal != NULL) {
+        ((void (*)(id, SEL))WMCustomTabLayoutOriginal)(
+            bar,
+            selector
+        );
+    }
+    if (bar.window != nil) {
+        WMGlassifyCustomBar(bar);
+    }
+}
+
+static BOOL WMInstallHook(
     Class viewClass,
+    SEL selector,
     IMP replacement,
     IMP *original
 ) {
     if (viewClass == Nil) {
         return NO;
     }
-    SEL selector = NSSelectorFromString(@"didMoveToWindow");
     Method method = class_getInstanceMethod(viewClass, selector);
     if (method == NULL) {
         return NO;
@@ -110,6 +139,28 @@ static BOOL WMInstallDidMoveHook(
     }
     *original = method_setImplementation(method, replacement);
     return *original != NULL;
+}
+
+static BOOL WMInstallCustomBarHooks(
+    Class viewClass,
+    IMP didMoveReplacement,
+    IMP *didMoveOriginal,
+    IMP layoutReplacement,
+    IMP *layoutOriginal
+) {
+    BOOL didMoveInstalled = WMInstallHook(
+        viewClass,
+        NSSelectorFromString(@"didMoveToWindow"),
+        didMoveReplacement,
+        didMoveOriginal
+    );
+    BOOL layoutInstalled = WMInstallHook(
+        viewClass,
+        NSSelectorFromString(@"layoutSubviews"),
+        layoutReplacement,
+        layoutOriginal
+    );
+    return didMoveInstalled && layoutInstalled;
 }
 
 static BOOL WMUsesNativeNavigationGlass(Class viewClass) {
@@ -128,10 +179,12 @@ static void WMInstallDynamicBarHooks(void) {
         if (WMUsesNativeNavigationGlass(navigationClass)) {
             WMCustomNavigationHookInstalled = YES;
         } else {
-            WMCustomNavigationHookInstalled = WMInstallDidMoveHook(
+            WMCustomNavigationHookInstalled = WMInstallCustomBarHooks(
                 navigationClass,
                 (IMP)WMCustomNavigationDidMove,
-                &WMCustomNavigationDidMoveOriginal
+                &WMCustomNavigationDidMoveOriginal,
+                (IMP)WMCustomNavigationLayout,
+                &WMCustomNavigationLayoutOriginal
             );
         }
     }
@@ -140,12 +193,22 @@ static void WMInstallDynamicBarHooks(void) {
         if (WMUsesNativeTabGlass(tabClass)) {
             WMCustomTabHookInstalled = YES;
         } else {
-            WMCustomTabHookInstalled = WMInstallDidMoveHook(
+            WMCustomTabHookInstalled = WMInstallCustomBarHooks(
                 tabClass,
                 (IMP)WMCustomTabDidMove,
-                &WMCustomTabDidMoveOriginal
+                &WMCustomTabDidMoveOriginal,
+                (IMP)WMCustomTabLayout,
+                &WMCustomTabLayoutOriginal
             );
         }
+    }
+}
+
+static void WMRefreshVisibleLayouts(void) {
+    for (UIWindow *window in UIApplication.sharedApplication.windows) {
+        UIView *rootView = window.rootViewController.view;
+        [rootView setNeedsLayout];
+        [rootView layoutIfNeeded];
     }
 }
 
@@ -168,8 +231,10 @@ static void WMInstallDynamicBarHooks(void) {
                                __unused NSNotification *notification
                            ) {
                                WMInstallDynamicBarHooks();
+                               WMRefreshVisibleLayouts();
                            }];
         }
+        WMRefreshVisibleLayouts();
     });
 }
 
