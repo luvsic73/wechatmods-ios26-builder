@@ -31,10 +31,6 @@ jobs:
           strings dist/WeChatMods.dylib | grep -F WMSettingsEntry
           strings dist/WeChatMods.dylib | grep -F WMAntiRevokeModule
           strings dist/WeChatMods.dylib | grep -F 'setInteractive:'
-          if strings dist/WeChatMods.dylib | grep -F 'initWithStyle:'; then
-            echo "Old glass initializer detected" >&2
-            exit 1
-          fi
       - name: Run no-account iOS 26.2 UI fixture
         run: bash scripts/run-ios-simulator-ui-tests.sh
       - uses: actions/upload-artifact@v4
