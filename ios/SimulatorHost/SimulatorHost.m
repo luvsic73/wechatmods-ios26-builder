@@ -401,17 +401,6 @@ static void WMWriteDiagnostics(
                     @"WMSettingsViewController"
                 )
             ];
-            NSInteger glassEffectCount =
-                WMCountGlassEffects(window);
-            NSInteger glassBackdropCount =
-                WMCountViewsWithIdentifier(
-                    window,
-                    @"wechatmods.liquid-glass-backdrop"
-                );
-            NSMutableOrderedSet<NSString *> *effectClassNames =
-                [NSMutableOrderedSet orderedSet];
-            WMCollectEffectClassNames(window, effectClassNames);
-
             UITabBarController *tabs =
                 (UITabBarController *)window.rootViewController;
             tabs.selectedIndex = 1;
@@ -427,6 +416,19 @@ static void WMWriteDiagnostics(
                 ^{
                     [window layoutIfNeeded];
                     [loginController.view layoutIfNeeded];
+                    NSInteger glassEffectCount =
+                        WMCountGlassEffects(window);
+                    NSInteger glassBackdropCount =
+                        WMCountViewsWithIdentifier(
+                            window,
+                            @"wechatmods.liquid-glass-backdrop"
+                        );
+                    NSMutableOrderedSet<NSString *> *effectClassNames =
+                        [NSMutableOrderedSet orderedSet];
+                    WMCollectEffectClassNames(
+                        window,
+                        effectClassNames
+                    );
                     UIView *extension = WMFindView(
                         loginController.view,
                         @"wechatmods.login-background-extension"
