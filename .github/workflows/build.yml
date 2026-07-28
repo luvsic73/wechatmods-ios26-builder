@@ -1,0 +1,47 @@
+name: build-and-verify-ios26
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-simulator:
+    runs-on: macos-26
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+      TARGET_DEVICE_NAME: iPhone 17 Pro Max
+      TARGET_RUNTIME_VERSION: "26.2"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm toolchain
+        run: |
+          xcodebuild -version
+          xcrun simctl list runtimes available
+      - name: Build arm64 loader
+        run: |
+          bash scripts/build-loader.sh dist/WeChatMods.dylib
+          file dist/WeChatMods.dylib
+          strings dist/WeChatMods.dylib | grep -F WMLoginLayoutAdapter
+          strings dist/WeChatMods.dylib | grep -F UIBackgroundExtensionView
+          strings dist/WeChatMods.dylib | grep -F WMLiquidGlassStyle
+          strings dist/WeChatMods.dylib | grep -F WMSettingsEntry
+          strings dist/WeChatMods.dylib | grep -F WMAntiRevokeModule
+          strings dist/WeChatMods.dylib | grep -F 'setInteractive:'
+          if strings dist/WeChatMods.dylib | grep -F 'initWithStyle:'; then
+            echo "Old glass initializer detected" >&2
+            exit 1
+          fi
+      - name: Run no-account iOS 26.2 UI fixture
+        run: bash scripts/run-ios-simulator-ui-tests.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wechatmods-ios26-verified
+          path: |
+            dist/WeChatMods.dylib
+            reports/simulator-ui
+          if-no-files-found: error
